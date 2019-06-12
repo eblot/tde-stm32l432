@@ -163,24 +163,6 @@ int main(void)
    halInit();
    chSysInit();
 
-   // UART2: debug port
-   sdStart(&SD2, &_SD2_CONFIG);
-
-   #pragma clang diagnostic push
-   #pragma clang diagnostic ignored "-Wdate-time"
-   chprintf((BaseSequentialStream *)&SD2, "\nUSB-CDC @ " __TIME__ );
-   #pragma clang diagnostic pop
-
-   return 0;
-}
-
-#if 0
-// Application entry point.
-int main2(void)
-{
-   halInit();
-   chSysInit();
-
    struct forwarder_engine * fe = &_forwarder_engine;
    chMtxObjectInit(&fe->fe_dbgmtx);
 
@@ -194,8 +176,8 @@ int main2(void)
    sdStart(&SD2, &_SD2_CONFIG);
 
    // USB: Serial-over-USB CDC ACM.
-//   sduObjectInit(&SDU1);
-//   sduStart(&SDU1, &serusbcfg);
+   sduObjectInit(&SDU1);
+   sduStart(&SDU1, &serusbcfg);
 
    #pragma clang diagnostic push
    #pragma clang diagnostic ignored "-Wdate-time"
@@ -359,8 +341,6 @@ int main2(void)
       }
    }
 }
-
-#endif
 
 /**
  * Format the content of a binary buffer as hexadecimal values.

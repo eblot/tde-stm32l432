@@ -436,7 +436,8 @@ struct USBDriver {
  * @notapi
  */
 #if !defined(usb_lld_connect_bus)
-#define usb_lld_connect_bus(usbp) (STM32_USB->BCDR |= USB_BCDR_DPPU)
+#define usb_lld_connect_bus(usbp) \
+   (STM32_USB->BCDR |= (uint32_t)USB_BCDR_DPPU)
 #endif
 
 /**
@@ -445,7 +446,8 @@ struct USBDriver {
  * @notapi
  */
 #if !defined(usb_lld_disconnect_bus)
-#define usb_lld_disconnect_bus(usbp) (STM32_USB->BCDR &= ~USB_BCDR_DPPU)
+#define usb_lld_disconnect_bus(usbp) \
+   (STM32_USB->BCDR &= (uint32_t)~USB_BCDR_DPPU)
 #endif
 #endif /* STM32_USB_HAS_BCDR */
 
