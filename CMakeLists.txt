@@ -55,6 +55,7 @@ ADD_DEFINITIONS (-Wno-documentation
                  -Wno-documentation-unknown-command)
 
 ADD_DEFINITIONS (-DCRT1_AREAS_NUMBER=1 -D${BOARD})
+ADD_DEFINITIONS (-DCORTEX_USE_FPU=0) # do not add support for FPU
 
 find_subprojects (SUBPROJECTS)
 
