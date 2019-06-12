@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -104,29 +104,60 @@ static msg_t _get(void *ip) {
   return ibqGetTimeout(&((SerialUSBDriver *)ip)->ibqueue, TIME_INFINITE);
 }
 
-static msg_t _putt(void *ip, uint8_t b, systime_t timeout) {
+static msg_t _putt(void *ip, uint8_t b, sysinterval_t timeout) {
 
   return obqPutTimeout(&((SerialUSBDriver *)ip)->obqueue, b, timeout);
 }
 
-static msg_t _gett(void *ip, systime_t timeout) {
+static msg_t _gett(void *ip, sysinterval_t timeout) {
 
   return ibqGetTimeout(&((SerialUSBDriver *)ip)->ibqueue, timeout);
 }
 
-static size_t _writet(void *ip, const uint8_t *bp, size_t n, systime_t timeout) {
+static size_t _writet(void *ip, const uint8_t *bp, size_t n,
+                      sysinterval_t timeout) {
 
   return obqWriteTimeout(&((SerialUSBDriver *)ip)->obqueue, bp, n, timeout);
 }
 
-static size_t _readt(void *ip, uint8_t *bp, size_t n, systime_t timeout) {
+static size_t _readt(void *ip, uint8_t *bp, size_t n,
+                     sysinterval_t timeout) {
 
   return ibqReadTimeout(&((SerialUSBDriver *)ip)->ibqueue, bp, n, timeout);
 }
 
+static msg_t _ctl(void *ip, unsigned int operation, void *arg) {
+  SerialUSBDriver *sdup = (SerialUSBDriver *)ip;
+
+  osalDbgCheck(sdup != NULL);
+
+  switch (operation) {
+  case CHN_CTL_NOP:
+    osalDbgCheck(arg == NULL);
+    break;
+  case CHN_CTL_INVALID:
+    osalDbgAssert(false, "invalid CTL operation");
+    break;
+  default:
+#if defined(SDU_LLD_IMPLEMENTS_CTL)
+    /* The SDU driver does not have a LLD but the application can use this
+       hook to implement extra controls by supplying this function.*/ 
+    extern msg_t sdu_lld_control(SerialUSBDriver *sdup,
+                                 unsigned int operation,
+                                 void *arg);
+    return sdu_lld_control(sdup, operation, arg);
+#else
+    break;
+#endif
+  }
+  return MSG_OK;
+}
+
 static const struct SerialUSBDriverVMT vmt = {
+  (size_t)0,
   _write, _read, _put, _get,
-  _putt, _gett, _writet, _readt
+  _putt, _gett, _writet, _readt,
+  _ctl
 };
 
 /**
@@ -157,12 +188,11 @@ static void obnotify(io_buffers_queue_t *bqp) {
 
   /* Checking if there is already a transaction ongoing on the endpoint.*/
   if (!usbGetTransmitStatusI(sdup->config->usbp, sdup->config->bulk_in)) {
-    /* Trying to get a full buffer.*/
+    /* Getting a full buffer, a buffer is available for sure because this
+       callback is invoked when one has been inserted.*/
     uint8_t *buf = obqGetFullBufferI(&sdup->obqueue, &n);
-    if (buf != NULL) {
-      /* Buffer found, starting a new transaction.*/
-      usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);
-    }
+    osalDbgAssert(buf != NULL, "buffer not found");
+    usbStartTransmitI(sdup->config->usbp, sdup->config->bulk_in, buf, n);
   }
 }
 
@@ -279,6 +309,10 @@ void sduStop(SerialUSBDriver *sdup) {
  */
 void sduSuspendHookI(SerialUSBDriver *sdup) {
 
+  /* Avoiding events spam.*/
+  if(bqIsSuspendedX(&sdup->ibqueue) && bqIsSuspendedX(&sdup->obqueue)) {
+    return;
+  }
   chnAddFlagsI(sdup, CHN_DISCONNECTED);
   bqSuspendI(&sdup->ibqueue);
   bqSuspendI(&sdup->obqueue);
@@ -453,20 +487,25 @@ void sduDataTransmitted(USBDriver *usbp, usbep_t ep) {
  * @param[in] ep        OUT endpoint number
  */
 void sduDataReceived(USBDriver *usbp, usbep_t ep) {
+  size_t size;
   SerialUSBDriver *sdup = usbp->out_params[ep - 1U];
+
   if (sdup == NULL) {
     return;
   }
 
   osalSysLockFromISR();
 
-  /* Signaling that data is available in the input queue.*/
-  chnAddFlagsI(sdup, CHN_INPUT_AVAILABLE);
+  /* Checking for zero-size transactions.*/
+  size = usbGetReceiveTransactionSizeX(sdup->config->usbp,
+                                       sdup->config->bulk_out);
+  if (size > (size_t)0) {
+    /* Signaling that data is available in the input queue.*/
+    chnAddFlagsI(sdup, CHN_INPUT_AVAILABLE);
 
-  /* Posting the filled buffer in the queue.*/
-  ibqPostFullBufferI(&sdup->ibqueue,
-                     usbGetReceiveTransactionSizeX(sdup->config->usbp,
-                                                   sdup->config->bulk_out));
+    /* Posting the filled buffer in the queue.*/
+    ibqPostFullBufferI(&sdup->ibqueue, size);
+  }
 
   /* The endpoint cannot be busy, we are in the context of the callback,
      so a packet is in the buffer for sure. Trying to get a free buffer
@@ -488,6 +527,25 @@ void sduInterruptTransmitted(USBDriver *usbp, usbep_t ep) {
 
   (void)usbp;
   (void)ep;
+}
+
+/**
+ * @brief   Control operation on a serial USB port.
+ *
+ * @param[in] usbp       pointer to a @p USBDriver object
+ * @param[in] operation control operation code
+ * @param[in,out] arg   operation argument
+ *
+ * @return              The control operation status.
+ * @retval MSG_OK       in case of success.
+ * @retval MSG_TIMEOUT  in case of operation timeout.
+ * @retval MSG_RESET    in case of operation reset.
+ *
+ * @api
+ */
+msg_t sduControl(USBDriver *usbp, unsigned int operation, void *arg) {
+
+  return _ctl((void *)usbp, operation, arg);
 }
 
 #endif /* HAL_USE_SERIAL_USB == TRUE */

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
  *          - <b>Input queue</b>, unidirectional queue where the writer is the
  *            ISR side and the reader is the thread side.
  *          - <b>Output queue</b>, unidirectional queue where the writer is the
- *            ISR side and the reader is the thread side.
+ *            thread side and the reader is the ISR side.
  *          - <b>Full duplex queue</b>, bidirectional queue. Full duplex queues
  *            are implemented by pairing an input queue and an output queue
  *            together.
@@ -188,7 +188,7 @@ void ibqPostFullBufferI(input_buffers_queue_t *ibqp, size_t size) {
  * @api
  */
 msg_t ibqGetFullBufferTimeout(input_buffers_queue_t *ibqp,
-                              systime_t timeout) {
+                              sysinterval_t timeout) {
   msg_t msg;
 
   osalSysLock();
@@ -220,7 +220,7 @@ msg_t ibqGetFullBufferTimeout(input_buffers_queue_t *ibqp,
    * @sclass
    */
   msg_t ibqGetFullBufferTimeoutS(input_buffers_queue_t *ibqp,
-                                 systime_t timeout) {
+                                 sysinterval_t timeout) {
 
   osalDbgCheckClassS();
 
@@ -306,7 +306,7 @@ void ibqReleaseEmptyBuffer(input_buffers_queue_t *ibqp) {
  *
  * @api
  */
-msg_t ibqGetTimeout(input_buffers_queue_t *ibqp, systime_t timeout) {
+msg_t ibqGetTimeout(input_buffers_queue_t *ibqp, sysinterval_t timeout) {
   msg_t msg;
 
   osalSysLock();
@@ -356,16 +356,12 @@ msg_t ibqGetTimeout(input_buffers_queue_t *ibqp, systime_t timeout) {
  * @api
  */
 size_t ibqReadTimeout(input_buffers_queue_t *ibqp, uint8_t *bp,
-                      size_t n, systime_t timeout) {
+                      size_t n, sysinterval_t timeout) {
   size_t r = 0;
-  systime_t deadline;
 
   osalDbgCheck(n > 0U);
 
   osalSysLock();
-
-  /* Time window for the whole operation.*/
-  deadline = osalOsGetSystemTimeX() + timeout;
 
   while (true) {
     size_t size;
@@ -374,23 +370,8 @@ size_t ibqReadTimeout(input_buffers_queue_t *ibqp, uint8_t *bp,
     if (ibqp->ptr == NULL) {
       msg_t msg;
 
-      /* TIME_INFINITE and TIME_IMMEDIATE are handled differently, no
-         deadline.*/
-      if ((timeout == TIME_INFINITE) || (timeout == TIME_IMMEDIATE)) {
-        msg = ibqGetFullBufferTimeoutS(ibqp, timeout);
-      }
-      else {
-        systime_t next_timeout = deadline - osalOsGetSystemTimeX();
-
-        /* Handling the case where the system time went past the deadline,
-           in this case next becomes a very high number because the system
-           time is an unsigned type.*/
-        if (next_timeout > timeout) {
-          osalSysUnlock();
-          return r;
-        }
-        msg = ibqGetFullBufferTimeoutS(ibqp, next_timeout);
-      }
+      /* Getting a data buffer using the specified timeout.*/
+      msg = ibqGetFullBufferTimeoutS(ibqp, timeout);
 
       /* Anything except MSG_OK interrupts the operation.*/
       if (msg != MSG_OK) {
@@ -407,12 +388,12 @@ size_t ibqReadTimeout(input_buffers_queue_t *ibqp, uint8_t *bp,
 
     /* Smaller chunks in order to not make the critical zone too long,
        this impacts throughput however.*/
-    if (size > 64U) {
+    if (size > (size_t)BUFFERS_CHUNKS_SIZE) {
       /* Giving the compiler a chance to optimize for a fixed size move.*/
-      memcpy(bp, ibqp->ptr, 64U);
-      bp        += 64U;
-      ibqp->ptr += 64U;
-      r         += 64U;
+      memcpy(bp, ibqp->ptr, BUFFERS_CHUNKS_SIZE);
+      bp        += (size_t)BUFFERS_CHUNKS_SIZE;
+      ibqp->ptr += (size_t)BUFFERS_CHUNKS_SIZE;
+      r         += (size_t)BUFFERS_CHUNKS_SIZE;
     }
     else {
       memcpy(bp, ibqp->ptr, size);
@@ -562,7 +543,7 @@ void obqReleaseEmptyBufferI(output_buffers_queue_t *obqp) {
  * @api
  */
 msg_t obqGetEmptyBufferTimeout(output_buffers_queue_t *obqp,
-                                systime_t timeout) {
+                               sysinterval_t timeout) {
   msg_t msg;
 
   osalSysLock();
@@ -594,7 +575,7 @@ msg_t obqGetEmptyBufferTimeout(output_buffers_queue_t *obqp,
  * @sclass
  */
 msg_t obqGetEmptyBufferTimeoutS(output_buffers_queue_t *obqp,
-                                systime_t timeout) {
+                                sysinterval_t timeout) {
 
   osalDbgCheckClassS();
 
@@ -688,7 +669,7 @@ void obqPostFullBufferS(output_buffers_queue_t *obqp, size_t size) {
  * @api
  */
 msg_t obqPutTimeout(output_buffers_queue_t *obqp, uint8_t b,
-                    systime_t timeout) {
+                    sysinterval_t timeout) {
   msg_t msg;
 
   osalSysLock();
@@ -738,16 +719,12 @@ msg_t obqPutTimeout(output_buffers_queue_t *obqp, uint8_t b,
  * @api
  */
 size_t obqWriteTimeout(output_buffers_queue_t *obqp, const uint8_t *bp,
-                       size_t n, systime_t timeout) {
+                       size_t n, sysinterval_t timeout) {
   size_t w = 0;
-  systime_t deadline;
 
   osalDbgCheck(n > 0U);
 
   osalSysLock();
-
-  /* Time window for the whole operation.*/
-  deadline = osalOsGetSystemTimeX() + timeout;
 
   while (true) {
     size_t size;
@@ -756,23 +733,8 @@ size_t obqWriteTimeout(output_buffers_queue_t *obqp, const uint8_t *bp,
     if (obqp->ptr == NULL) {
       msg_t msg;
 
-      /* TIME_INFINITE and TIME_IMMEDIATE are handled differently, no
-         deadline.*/
-      if ((timeout == TIME_INFINITE) || (timeout == TIME_IMMEDIATE)) {
-        msg = obqGetEmptyBufferTimeoutS(obqp, timeout);
-      }
-      else {
-        systime_t next_timeout = deadline - osalOsGetSystemTimeX();
-
-        /* Handling the case where the system time went past the deadline,
-           in this case next becomes a very high number because the system
-           time is an unsigned type.*/
-        if (next_timeout > timeout) {
-          osalSysUnlock();
-          return w;
-        }
-        msg = obqGetEmptyBufferTimeoutS(obqp, next_timeout);
-      }
+      /* Getting an empty buffer using the specified timeout.*/
+      msg = obqGetEmptyBufferTimeoutS(obqp, timeout);
 
       /* Anything except MSG_OK interrupts the operation.*/
       if (msg != MSG_OK) {
@@ -789,12 +751,12 @@ size_t obqWriteTimeout(output_buffers_queue_t *obqp, const uint8_t *bp,
 
     /* Smaller chunks in order to not make the critical zone too long,
        this impacts throughput however.*/
-    if (size > 64U) {
+    if (size > (size_t)BUFFERS_CHUNKS_SIZE) {
       /* Giving the compiler a chance to optimize for a fixed size move.*/
-      memcpy(obqp->ptr, bp, 64U);
-      bp        += 64U;
-      obqp->ptr += 64U;
-      w         += 64U;
+      memcpy(obqp->ptr, bp, (size_t)BUFFERS_CHUNKS_SIZE);
+      bp        += (size_t)BUFFERS_CHUNKS_SIZE;
+      obqp->ptr += (size_t)BUFFERS_CHUNKS_SIZE;
+      w         += (size_t)BUFFERS_CHUNKS_SIZE;
     }
     else {
       memcpy(obqp->ptr, bp, size);

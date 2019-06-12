@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -21,7 +21,10 @@
  * @file    chcustomer.h
  * @brief   Customer-related info.
  *
- * @addtogroup customer
+ * @addtogroup chibios_customer
+ * @details This module incapsulates licensee information, this is only
+ *          meaningful for commercial licenses. It is a stub for public
+ *          releases.
  * @{
  */
 
@@ -57,6 +60,7 @@
  */
 #define CH_CUSTOMER_LIC_RT                  TRUE
 #define CH_CUSTOMER_LIC_NIL                 TRUE
+#define CH_CUSTOMER_LIC_OSLIB               TRUE
 #define CH_CUSTOMER_LIC_EX                  TRUE
 #define CH_CUSTOMER_LIC_PORT_CM0            TRUE
 #define CH_CUSTOMER_LIC_PORT_CM3            TRUE

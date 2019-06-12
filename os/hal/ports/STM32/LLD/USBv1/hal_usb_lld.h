@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -445,8 +445,7 @@ struct USBDriver {
  * @notapi
  */
 #if !defined(usb_lld_disconnect_bus)
-#define usb_lld_disconnect_bus(usbp) \
-   (STM32_USB->BCDR &= (unsigned int)~USB_BCDR_DPPU)
+#define usb_lld_disconnect_bus(usbp) (STM32_USB->BCDR &= ~USB_BCDR_DPPU)
 #endif
 #endif /* STM32_USB_HAS_BCDR */
 

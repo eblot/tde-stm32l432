@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -31,24 +31,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-
-/**
- * @name    Common constants
- */
-/**
- * @brief   Generic 'false' boolean constant.
- */
-#if !defined(FALSE) || defined(__DOXYGEN__)
-#define FALSE               0
-#endif
-
-/**
- * @brief   Generic 'true' boolean constant.
- */
-#if !defined(TRUE) || defined(__DOXYGEN__)
-#define TRUE                1
-#endif
-/** @} */
 
 /**
  * @name    Kernel types

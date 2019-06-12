@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -181,7 +181,6 @@ void adcStartConversionI(ADCDriver *adcp,
   osalDbgCheck((adcp != NULL) && (grpp != NULL) && (samples != NULL) &&
                (depth > 0U) && ((depth == 1U) || ((depth & 1U) == 0U)));
   osalDbgAssert((adcp->state == ADC_READY) ||
-                (adcp->state == ADC_COMPLETE) ||
                 (adcp->state == ADC_ERROR),
                 "not ready");
 

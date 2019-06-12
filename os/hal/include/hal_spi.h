@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -31,6 +31,19 @@
 /* Driver constants.                                                         */
 /*===========================================================================*/
 
+/**
+ * @name    Chip Select modes
+ * @{
+ */
+#define SPI_SELECT_MODE_NONE                0   /** @brief @p spiSelect() and
+                                                    @p spiUnselect() do
+                                                    nothing.                */
+#define SPI_SELECT_MODE_PAD                 1   /** @brief Legacy mode.     */
+#define SPI_SELECT_MODE_PORT                2   /** @brief Fastest mode.    */
+#define SPI_SELECT_MODE_LINE                3   /** @brief Packed mode.     */
+#define SPI_SELECT_MODE_LLD                 4   /** @brief LLD-defined mode.*/
+/** @} */
+
 /*===========================================================================*/
 /* Driver pre-compile time settings.                                         */
 /*===========================================================================*/
@@ -44,7 +57,15 @@
  * @note    Disabling this option saves both code and data space.
  */
 #if !defined(SPI_USE_WAIT) || defined(__DOXYGEN__)
-#define SPI_USE_WAIT                TRUE
+#define SPI_USE_WAIT                        TRUE
+#endif
+
+/**
+ * @brief   Enables circular transfers APIs.
+ * @note    Disabling this option saves both code and data space.
+ */
+#if !defined(SPI_USE_CIRCULAR) || defined(__DOXYGEN__)
+#define SPI_USE_CIRCULAR                    FALSE
 #endif
 
 /**
@@ -52,13 +73,38 @@
  * @note    Disabling this option saves both code and data space.
  */
 #if !defined(SPI_USE_MUTUAL_EXCLUSION) || defined(__DOXYGEN__)
-#define SPI_USE_MUTUAL_EXCLUSION    TRUE
+#define SPI_USE_MUTUAL_EXCLUSION            TRUE
+#endif
+
+/**
+ * @brief   Handling method for SPI CS line.
+ * @note    Disabling this option saves both code and data space.
+ */
+#if !defined(SPI_SELECT_MODE) || defined(__DOXYGEN__)
+#define SPI_SELECT_MODE                     SPI_SELECT_MODE_PAD
 #endif
 /** @} */
 
 /*===========================================================================*/
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
+
+#if (SPI_SELECT_MODE != SPI_SELECT_MODE_NONE) &&                            \
+    (SPI_SELECT_MODE != SPI_SELECT_MODE_PAD)  &&                            \
+    (SPI_SELECT_MODE != SPI_SELECT_MODE_PORT) &&                            \
+    (SPI_SELECT_MODE != SPI_SELECT_MODE_LINE) &&                            \
+    (SPI_SELECT_MODE != SPI_SELECT_MODE_LLD)
+#error "invalid SPI_SELECT_MODE setting"
+#endif
+
+/* Some modes have a dependency on the PAL driver, making the required
+   checks here.*/
+#if ((SPI_SELECT_MODE != SPI_SELECT_MODE_PAD)  ||                           \
+     (SPI_SELECT_MODE != SPI_SELECT_MODE_PORT) ||                           \
+     (SPI_SELECT_MODE != SPI_SELECT_MODE_LINE)) &&                          \
+    (HAL_USE_PAL != TRUE)
+#error "current SPI_SELECT_MODE requires HAL_USE_PAL"
+#endif
 
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
@@ -75,7 +121,101 @@ typedef enum {
   SPI_COMPLETE = 4                  /**< Asynchronous operation complete.   */
 } spistate_t;
 
+/**
+ * @brief   Type of a structure representing an SPI driver.
+ */
+typedef struct hal_spi_driver SPIDriver;
+/**
+ * @brief   Type of a SPI driver configuration structure.
+ */
+typedef struct hal_spi_config SPIConfig;
+
+/**
+ * @brief   SPI notification callback type.
+ *
+ * @param[in] spip      pointer to the @p SPIDriver object triggering the
+ *                      callback
+ */
+typedef void (*spicallback_t)(SPIDriver *spip);
+
+/* Including the low level driver header, it exports information required
+   for completing types.*/
 #include "hal_spi_lld.h"
+
+/**
+ * @brief   Driver configuration structure.
+ */
+struct hal_spi_config {
+#if (SPI_SUPPORTS_CIRCULAR == TRUE) || defined(__DOXYGEN__)
+  /**
+   * @brief   Enables the circular buffer mode.
+   */
+  bool                      circular;
+#endif
+  /**
+   * @brief Operation complete callback or @p NULL.
+   */
+  spicallback_t             end_cb;
+#if (SPI_SELECT_MODE == SPI_SELECT_MODE_LINE) || defined(__DOXYGEN__)
+  /**
+   * @brief The chip select line.
+   */
+  ioline_t                  ssline;
+#endif
+#if (SPI_SELECT_MODE == SPI_SELECT_MODE_PORT) || defined(__DOXYGEN__)
+  /**
+   * @brief The chip select port.
+   */
+  ioportid_t                ssport;
+  /**
+   * @brief The chip select port mask.
+   */
+  ioportmask_t              ssmask;
+#endif
+#if (SPI_SELECT_MODE == SPI_SELECT_MODE_PAD) || defined(__DOXYGEN__)
+  /**
+   * @brief The chip select port.
+   */
+  ioportid_t                ssport;
+  /**
+   * @brief The chip select pad number.
+   */
+  uint_fast8_t              sspad;
+#endif
+  /* End of the mandatory fields.*/
+  spi_lld_config_fields;
+};
+
+/**
+ * @brief   Structure representing an SPI driver.
+ */
+struct hal_spi_driver {
+  /**
+   * @brief Driver state.
+   */
+  spistate_t                state;
+  /**
+   * @brief Current configuration data.
+   */
+  const SPIConfig           *config;
+#if (SPI_USE_WAIT == TRUE) || defined(__DOXYGEN__)
+  /**
+   * @brief   Waiting thread.
+   */
+  thread_reference_t        thread;
+#endif /* SPI_USE_WAIT == TRUE */
+#if (SPI_USE_MUTUAL_EXCLUSION == TRUE) || defined(__DOXYGEN__)
+  /**
+   * @brief   Mutex protecting the peripheral.
+   */
+  mutex_t                   mutex;
+#endif /* SPI_USE_MUTUAL_EXCLUSION == TRUE */
+#if defined(SPI_DRIVER_EXT_FIELDS)
+  SPI_DRIVER_EXT_FIELDS
+#endif
+  /* End of the mandatory fields.*/
+  spi_lld_driver_fields;
+};
 
 /*===========================================================================*/
 /* Driver macros.                                                            */
@@ -86,15 +226,32 @@ typedef enum {
  * @{
  */
 /**
+ * @brief   Buffer state.
+ * @note    This function is meant to be called from the SPI callback only.
+ *
+ * @param[in] spip      pointer to the @p SPIDriver object
+ * @return              The buffer state.
+ * @retval              false if the driver filled/sent the first half of the
+ *                      buffer.
+ * @retval              true if the driver filled/sent the second half of the
+ *                      buffer.
+ *
+ * @special
+ */
+#define spiIsBufferComplete(spip) ((bool)((spip)->state == SPI_COMPLETE))
+
+#if (SPI_SELECT_MODE == SPI_SELECT_MODE_LLD) || defined(__DOXYGEN__)
+/**
  * @brief   Asserts the slave select signal and prepares for transfers.
  *
  * @param[in] spip      pointer to the @p SPIDriver object
  *
  * @iclass
  */
-#define spiSelectI(spip) {                                                  \
+#define spiSelectI(spip)                                                    \
+do {                                                                        \
   spi_lld_select(spip);                                                     \
-}
+} while (false)
 
 /**
  * @brief   Deasserts the slave select signal.
@@ -104,9 +261,49 @@ typedef enum {
  *
  * @iclass
  */
-#define spiUnselectI(spip) {                                                \
+#define spiUnselectI(spip)                                                  \
+do {                                                                        \
   spi_lld_unselect(spip);                                                   \
-}
+} while (false)
+
+#elif SPI_SELECT_MODE == SPI_SELECT_MODE_LINE
+#define spiSelectI(spip)                                                    \
+do {                                                                        \
+  palClearLine((spip)->config->ssline);                                     \
+} while (false)
+
+#define spiUnselectI(spip)                                                  \
+do {                                                                        \
+  palSetLine((spip)->config->ssline);                                       \
+} while (false)
+
+#elif SPI_SELECT_MODE == SPI_SELECT_MODE_PORT
+#define spiSelectI(spip)                                                    \
+do {                                                                        \
+  palClearPort((spip)->config->ssport, (spip)->config->ssmask);             \
+} while (false)
+
+#define spiUnselectI(spip)                                                  \
+do {                                                                        \
+  palSetPort((spip)->config->ssport, (spip)->config->ssmask);               \
+} while (false)
+
+#elif SPI_SELECT_MODE == SPI_SELECT_MODE_PAD
+#define spiSelectI(spip)                                                    \
+do {                                                                        \
+  palClearPad((spip)->config->ssport, (spip)->config->sspad);               \
+} while (false)
+
+#define spiUnselectI(spip)                                                  \
+do {                                                                        \
+  palSetPad((spip)->config->ssport, (spip)->config->sspad);                 \
+} while (false)
+
+#elif SPI_SELECT_MODE == SPI_SELECT_MODE_NONE
+#define spiSelectI(spip)
+
+#define spiUnselectI(spip)
+#endif
 
 /**
  * @brief   Ignores data on the SPI bus.
@@ -226,7 +423,7 @@ typedef enum {
 #endif /* !SPI_USE_WAIT */
 
 /**
- * @brief   Common ISR code.
+ * @brief   Common ISR code when circular mode is not supported.
  * @details This code handles the portable part of the ISR code:
  *          - Callback invocation.
  *          - Waiting thread wakeup, if any.
@@ -250,6 +447,46 @@ typedef enum {
     (spip)->state = SPI_READY;                                              \
   _spi_wakeup_isr(spip);                                                    \
 }
+
+/**
+ * @brief   Half buffer filled ISR code in circular mode.
+ * @details This code handles the portable part of the ISR code:
+ *          - Callback invocation.
+ *          .
+ * @note    This macro is meant to be used in the low level drivers
+ *          implementation only.
+ *
+ * @param[in] spip      pointer to the @p SPIDriver object
+ *
+ * @notapi
+ */
+#define _spi_isr_half_code(spip) {                                          \
+  if ((spip)->config->end_cb) {                                             \
+    (spip)->config->end_cb(spip);                                           \
+  }                                                                         \
+}
+
+/**
+ * @brief   Full buffer filled ISR code in circular mode.
+ * @details This code handles the portable part of the ISR code:
+ *          - Callback invocation.
+ *          - Driver state transitions.
+ *          .
+ * @note    This macro is meant to be used in the low level drivers
+ *          implementation only.
+ *
+ * @param[in] spip      pointer to the @p SPIDriver object
+ *
+ * @notapi
+ */
+#define _spi_isr_full_code(spip) {                                          \
+  if ((spip)->config->end_cb) {                                             \
+    (spip)->state = SPI_COMPLETE;                                           \
+    (spip)->config->end_cb(spip);                                           \
+    if ((spip)->state == SPI_COMPLETE)                                      \
+      (spip)->state = SPI_ACTIVE;                                           \
+  }                                                                         \
+}
 /** @} */
 
 /*===========================================================================*/
@@ -270,6 +507,10 @@ extern "C" {
                         const void *txbuf, void *rxbuf);
   void spiStartSend(SPIDriver *spip, size_t n, const void *txbuf);
   void spiStartReceive(SPIDriver *spip, size_t n, void *rxbuf);
+#if SPI_SUPPORTS_CIRCULAR == TRUE
+  void spiAbortI(SPIDriver *spip);
+  void spiAbort(SPIDriver *spip);
+#endif
 #if SPI_USE_WAIT == TRUE
   void spiIgnore(SPIDriver *spip, size_t n);
   void spiExchange(SPIDriver *spip, size_t n, const void *txbuf, void *rxbuf);

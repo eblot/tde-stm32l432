@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,16 +22,9 @@
  * @{
  */
 
-
 /*===========================================================================*/
 /* Module constants.                                                         */
 /*===========================================================================*/
-
-#if defined(__ARM_PCS_VFP)
-#define CORTEX_USE_FPU                  TRUE
-#else // ! __ARM_PCS_VFP
-#define CORTEX_USE_FPU                  FALSE
-#endif // __ARM_PCS_VFP
 
 #if !defined(FALSE) || defined(__DOXYGEN__)
 #define FALSE                               0
@@ -58,6 +51,15 @@
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
+
+/**
+ * @brief   Enforces initialization of MSP.
+ * @note    This is required if the boot process is not reliable for whatever
+ *          reason (bad ROMs, bad bootloaders, bad debuggers=.
+ */
+#if !defined(CRT0_FORCE_MSP_INIT) || defined(__DOXYGEN__)
+#define CRT0_FORCE_MSP_INIT                 TRUE
+#endif
 
 /**
  * @brief   VTOR special register initialization.
@@ -178,12 +180,12 @@
                 .text
 
 /*
- * Reset handler.
+ * CRT0 entry point.
  */
                 .align  2
                 .thumb_func
-                .global Reset_Handler
-Reset_Handler:
+                .global _crt0_entry
+_crt0_entry:
                 /* Interrupts are globally masked initially.*/
                 cpsid   i
 

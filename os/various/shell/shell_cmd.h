@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@
 #endif
 
 #if !defined(SHELL_CMD_TEST_ENABLED) || defined(__DOXYGEN__)
-#define SHELL_CMD_TEST_ENABLED              FALSE
+#define SHELL_CMD_TEST_ENABLED              TRUE
 #endif
 
 #if !defined(SHELL_CMD_TEST_WA_SIZE) || defined(__DOXYGEN__)

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -139,12 +139,6 @@ struct port_context {
 };
 
 #endif /* !defined(_FROM_ASM_) */
-
-#if defined(__ARM_PCS_VFP)
-#define CORTEX_USE_FPU                  TRUE
-#else // ! __ARM_PCS_VFP
-#define CORTEX_USE_FPU                  FALSE
-#endif // __ARM_PCS_VFP
 
 /*===========================================================================*/
 /* Module macros.                                                            */

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -143,7 +143,7 @@ static void mii_find_phy(MACDriver *macp) {
   unsigned n = STM32_MAC_PHY_TIMEOUT;
  do {
 #endif
-    for (i = 0U; i < 31U; i++) {
+    for (i = 0U; i <= 31U; i++) {
       macp->phyaddr = i << 11U;
       ETH->MACMIIDR = (i << 6U) | MACMIIDR_CR;
       if ((mii_read(macp, MII_PHYSID1) == (BOARD_PHY_ID >> 16U)) &&
@@ -267,7 +267,7 @@ void mac_lld_init(void) {
   rccResetETH();
 
   /* MAC clocks temporary activation.*/
-  rccEnableETH(false);
+  rccEnableETH(true);
 
   /* PHY address setup.*/
 #if defined(BOARD_PHY_ADDRESS)
@@ -295,7 +295,7 @@ void mac_lld_init(void) {
 #endif
 
   /* MAC clocks stopped again.*/
-  rccDisableETH(false);
+  rccDisableETH();
 }
 
 /**
@@ -317,7 +317,7 @@ void mac_lld_start(MACDriver *macp) {
   macp->txptr = (stm32_eth_tx_descriptor_t *)__eth_td;
 
   /* MAC clocks activation and commanded reset procedure.*/
-  rccEnableETH(false);
+  rccEnableETH(true);
 #if defined(STM32_MAC_DMABMR_SR)
   ETH->DMABMR |= ETH_DMABMR_SR;
   while(ETH->DMABMR & ETH_DMABMR_SR)
@@ -364,10 +364,14 @@ void mac_lld_start(MACDriver *macp) {
   /* DMA general settings.*/
   ETH->DMABMR   = ETH_DMABMR_AAB | ETH_DMABMR_RDP_1Beat | ETH_DMABMR_PBL_1Beat;
 
+  /* Check because errata on some devices. There should be no need to
+     disable flushing because the TXFIFO should be empty on macStart().*/
+#if !defined(STM32_MAC_DISABLE_TX_FLUSH)
   /* Transmit FIFO flush.*/
   ETH->DMAOMR   = ETH_DMAOMR_FTF;
   while (ETH->DMAOMR & ETH_DMAOMR_FTF)
     ;
+#endif
 
   /* DMA final configuration and start.*/
   ETH->DMAOMR   = ETH_DMAOMR_DTCEFD | ETH_DMAOMR_RSF | ETH_DMAOMR_TSF |
@@ -396,7 +400,7 @@ void mac_lld_stop(MACDriver *macp) {
     ETH->DMASR    = ETH->DMASR;
 
     /* MAC clocks stopped.*/
-    rccDisableETH(false);
+    rccDisableETH();
 
     /* ISR vector disabled.*/
     nvicDisableVector(STM32_ETH_NUMBER);

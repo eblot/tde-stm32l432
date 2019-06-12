@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@
  * @file    memstreams.c
  * @brief   Memory streams code.
  *
- * @addtogroup memory_streams
+ * @addtogroup HAL_MEMORY_STREAMS
+ * @details Memory buffers handled as streams.
  * @{
  */
 
@@ -84,7 +85,7 @@ static msg_t _get(void *ip) {
   return b;
 }
 
-static const struct MemStreamVMT vmt = {_writes, _reads, _put, _get};
+static const struct MemStreamVMT vmt = {(size_t)0, _writes, _reads, _put, _get};
 
 /*===========================================================================*/
 /* Driver exported functions.                                                */

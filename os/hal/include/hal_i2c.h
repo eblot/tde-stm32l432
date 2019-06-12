@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2015 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
  */
 
 /**
- * @file    i2c.h
+ * @file    hal_i2c.h
  * @brief   I2C Driver macros and structures.
  *
  * @addtogroup I2C
@@ -35,6 +35,7 @@
 /* Driver constants.                                                         */
 /*===========================================================================*/
 
+/* TODO: To be reviewed, too STM32-centric.*/
 /**
  * @name    I2C bus error conditions
  * @{
@@ -48,21 +49,7 @@
                                                 reception.                  */
 #define I2C_TIMEOUT                0x20    /**< @brief Hardware timeout.    */
 #define I2C_SMB_ALERT              0x40    /**< @brief SMBus Alert.         */
-#define I2C_UNKNOWN_ERROR          0x80   /**< @brief internal error (base value - current mode value added)       */
-
-#define I2C_STOPPED  ((i2cflags_t)(-1))
-                           /**< @brief stop condition or i2cStop() called   */
 /** @} */
-
-/**
- * @name   I2C function return codes
- * @{
- */
-#define I2C_OK        (MSG_OK)
-#define I2C_ERR_TIMEOUT   (MSG_TIMEOUT)
-#define I2C_ERROR     (MSG_RESET)
-/** @} */
-
 
 /*===========================================================================*/
 /* Driver pre-compile time settings.                                         */
@@ -75,34 +62,9 @@
 #define I2C_USE_MUTUAL_EXCLUSION    TRUE
 #endif
 
-/**
- * @brief   Enables 'lock' capability needed in I2C slave mode
- */
-#if !defined(HAL_USE_I2C_LOCK) || defined(__DOXYGEN__)
-#define HAL_USE_I2C_LOCK	FALSE
-#endif
-
-/**
- * @brief   Determines whether master mode required to be supported
- */
- #if !defined(HAL_USE_I2C_MASTER) || defined(__DOXYGEN__)
- #define HAL_USE_I2C_MASTER  TRUE
- #endif
-
-/**
- * @brief   Determines whether slave mode required to be supported
- */
- #if !defined(HAL_USE_I2C_SLAVE) || defined(__DOXYGEN__)
- #define HAL_USE_I2C_SLAVE  FALSE
- #endif
- 
 /*===========================================================================*/
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
-
-#if I2C_USE_MUTUAL_EXCLUSION && !CH_CFG_USE_MUTEXES && !CH_CFG_USE_SEMAPHORES
-#error "I2C_USE_MUTUAL_EXCLUSION requires CH_CFG_USE_MUTEXES and/or CH_CFG_USE_SEMAPHORES"
-#endif
 
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
@@ -167,7 +129,6 @@ typedef enum {
 #define i2cMasterReceive(i2cp, addr, rxbuf, rxbytes)                        \
   (i2cMasterReceiveTimeout(i2cp, addr, rxbuf, rxbytes, TIME_INFINITE))
 
-
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
@@ -184,22 +145,15 @@ extern "C" {
                                  i2caddr_t addr,
                                  const uint8_t *txbuf, size_t txbytes,
                                  uint8_t *rxbuf, size_t rxbytes,
-                                 systime_t timeout);
+                                 sysinterval_t timeout);
   msg_t i2cMasterReceiveTimeout(I2CDriver *i2cp,
                                 i2caddr_t addr,
                                 uint8_t *rxbuf, size_t rxbytes,
-                                systime_t timeout);
-
-#if HAL_USE_I2C_LOCK    /* I2C slave mode support */
-  void i2cLock(I2CDriver *i2cp, systime_t lockDuration);
-  void i2cUnlock(I2CDriver *i2cp);
-#endif
-
+                                sysinterval_t timeout);
 #if I2C_USE_MUTUAL_EXCLUSION == TRUE
   void i2cAcquireBus(I2CDriver *i2cp);
   void i2cReleaseBus(I2CDriver *i2cp);
-#endif /* I2C_USE_MUTUAL_EXCLUSION */
-
+#endif
 
 #ifdef __cplusplus
 }

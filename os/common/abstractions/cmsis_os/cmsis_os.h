@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -71,7 +71,7 @@
 /**
  * @brief   Wait forever specification for timeouts.
  */
-#define osWaitForever               TIME_INFINITE
+#define osWaitForever               ((uint32_t)-1)
 
 /**
  * @brief   System tick frequency.

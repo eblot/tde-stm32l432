@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -35,18 +35,19 @@ SECTIONS
         __fini_array_end = .;
     } > XTORS_FLASH AT > XTORS_FLASH_LMA
 
-    .text ALIGN(16) : ALIGN(16)
+    .text : ALIGN(4)
     {
+        __text_base = .;
         *(.text)
         *(.text.*)
         *(.glue_7t)
         *(.glue_7)
         *(.gcc*)
+        __text_end = .;
     } > TEXT_FLASH AT > TEXT_FLASH_LMA
 
     .rodata : ALIGN(4)
     {
-        . = ALIGN(4);
         __rodata_base__ = .;
         *(.rodata)
         *(.rodata.*)
