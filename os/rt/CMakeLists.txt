@@ -24,7 +24,9 @@ build_component_from (
   src/chevents.c
   src/chmsg.c
   src/chdynamic.c
-  ${CMAKE_SOURCE_DIR}/os/common/oslib/src/chmboxes.c
-  ${CMAKE_SOURCE_DIR}/os/common/oslib/src/chmemcore.c
-  ${CMAKE_SOURCE_DIR}/os/common/oslib/src/chheap.c
-  ${CMAKE_SOURCE_DIR}/os/common/oslib/src/chmempools.c)
+  ${CMAKE_SOURCE_DIR}/os/oslib/src/chfactory.c
+  ${CMAKE_SOURCE_DIR}/os/oslib/src/chmboxes.c
+  ${CMAKE_SOURCE_DIR}/os/oslib/src/chmemcore.c
+  ${CMAKE_SOURCE_DIR}/os/oslib/src/chmemheaps.c
+  ${CMAKE_SOURCE_DIR}/os/oslib/src/chmempools.c
+  ${CMAKE_SOURCE_DIR}/os/oslib/src/chpipes.c)

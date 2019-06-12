@@ -30,15 +30,14 @@ INCLUDE_DIRECTORIES (
   ${CMAKE_SOURCE_DIR}/os/common/ports/ARMCMx
   ${CMAKE_SOURCE_DIR}/os/common/ports/ARMCMx/compilers/GCC
   ${CMAKE_SOURCE_DIR}/os/common/startup/ARMCMx/devices/${DEVICE_FAMILY}
-  ${CMAKE_SOURCE_DIR}/os/common/ext/CMSIS/ST/${DEVICE_FAMILY}
-  ${CMAKE_SOURCE_DIR}/os/common/oslib/include
+  ${CMAKE_SOURCE_DIR}/os/common/ext/ARM/CMSIS/Core/Include
+  ${CMAKE_SOURCE_DIR}/os/common/ext/ST/${DEVICE_FAMILY}
   ${CMAKE_SOURCE_DIR}/os/hal/boards/${BOARD}
   ${CMAKE_SOURCE_DIR}/os/hal/include
   ${CMAKE_SOURCE_DIR}/os/hal/ports/common/ARMCMx
   ${CMAKE_SOURCE_DIR}/os/hal/ports/STM32/${DEVICE_FAMILY}
   ${CMAKE_SOURCE_DIR}/os/${CHTYPE}/include
   ${CMAKE_SOURCE_DIR}/os/hal/osal/${CHTYPE}
-  ${CMAKE_SOURCE_DIR}/os/common/ext/CMSIS/include
   ${CMAKE_SOURCE_DIR}/os/hal/ports/STM32/LLD/ADCv3
   ${CMAKE_SOURCE_DIR}/os/hal/ports/STM32/LLD/DACv1
   ${CMAKE_SOURCE_DIR}/os/hal/ports/STM32/LLD/DMAv1
@@ -49,7 +48,8 @@ INCLUDE_DIRECTORIES (
   ${CMAKE_SOURCE_DIR}/os/hal/ports/STM32/LLD/TIMv1
   ${CMAKE_SOURCE_DIR}/os/hal/ports/STM32/LLD/USARTv2
   ${CMAKE_SOURCE_DIR}/os/hal/ports/STM32/LLD/USBv1
-  ${CMAKE_SOURCE_DIR}/os/hal/lib/streams)
+  ${CMAKE_SOURCE_DIR}/os/hal/lib/streams
+  ${CMAKE_SOURCE_DIR}/os/oslib/include)
 
 ADD_DEFINITIONS (-Wno-documentation
                  -Wno-documentation-unknown-command)
