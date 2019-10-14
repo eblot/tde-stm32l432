@@ -7,11 +7,12 @@
 # Import useful macros
 CMAKE_MINIMUM_REQUIRED (VERSION 3.5)
 
-PROJECT (stml4 C ASM)
+PROJECT (stml4 C CXX ASM)
 
 use_target ()
 use_default_xcc_warnings ()
 use_default_xcc_settings ()
+use_default_xxx_settings ()
 use_default_xas_settings ()
 
 #-----------------------------------------------------------------------------

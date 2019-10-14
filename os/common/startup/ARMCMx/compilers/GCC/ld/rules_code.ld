@@ -55,6 +55,13 @@ SECTIONS
         __rodata_end__ = .;
     } > RODATA_FLASH AT > RODATA_FLASH_LMA
 
+    .got : {
+        *(.got)
+        *(.got.plt)
+        *(.igot)
+        *(.igot.plt)
+    } > RODATA_FLASH AT > RODATA_FLASH_LMA
+
     .ARM.extab :
     {
         *(.ARM.extab* .gnu.linkonce.armextab.*)
